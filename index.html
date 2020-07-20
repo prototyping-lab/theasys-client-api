@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 50px;
+      }
+      * {
+        font-family: sans-serif;
+      }
+      input, button {
+        padding: 10px;
+        margin: 3px;
+      }
+      input {
+        display: block;
+      }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+  </head>
+  <body>
+
+    <h1>Theasys Javascript API-demo</h1>
+
+    <p>
+      <em>Some random theasys tour we found on the interwebz...</em>
+    </p>
+
+    <script
+      async
+      src="https://static.theasys.io/embed.js"
+      data-theasys="XlEhWs4G1i85cVdYtTVx8ANxJQmBAp"
+      data-height="600px"
+      data-id="my-id"
+      data-class="my-class"
+      data-editing="0"
+    ></script>
+
+    <h2>Use the buttons to control Theasys viewer from the outside</h2>
+
+    <div id="gui"></div>
+
+    <script>
+
+      let THEASYS = {};
+      let DEBUG = false;
+
+      function apiSet(key, value) {
+          THEASYS.iframe.postMessage({type: "api", key, action:"set", value }, "https://www.theasys.io");
+      }
+
+      function apiGet(key) {
+          THEASYS.iframe.postMessage({type: "api", key, action:"get" }, "https://www.theasys.io");
+      }
+
+      function apiListen(key, fn) {
+          const eventHandler = event => {
+              const data = event.data;
+              if(data[key]) fn(data[key]);
+          }
+          window.addEventListener("message", eventHandler, false);
+      }
+
+
+      apiListen("loaded", () => {
+
+          console.log('Theasys loaded.');
+
+          THEASYS.iframe = document.querySelector("#my-id").contentWindow;
+
+          apiListen("fov_limits", fov_limits => {
+              console.log(`fov limits : ${fov_limits.min} ... ${fov_limits.max}`);
+              THEASYS.fov_limits = fov_limits;
+              // once we know the fov limits we can create the gui for controlling the camera
+              createCameraGui();
+          });
+
+          apiListen('panoramas', panos => {
+            // once we got the panos we can create the gui for jumping around
+            createPanoGui(panos);
+          });
+
+          // log stuff on the console
+          const logfn = tmplfn => data => { if(DEBUG) console.log(tmplfn(data)); };
+
+          apiListen('move',logfn(_ => `move ${_.value}° ${_.direction}`));
+          apiListen('lon', logfn(_ => `longitude: ${_}`));
+          apiListen('lat', logfn(_  => `latitude: ${_}`));
+          apiListen('fov', logfn(_ => `field of vision: ${_}`));
+          apiListen('direction', logfn(_ => `direction: ${_}`));
+
+          // get fov limits and panos
+          apiGet('fov_limits');
+          apiGet("panoramas");
+
+      });
+
+
+      function createCameraGui(fovMin, fovMax) {
+          createButton("90° Left", "move", {direction: "left", value: "90"});
+          createButton("90° Right", "move", {direction: "right", value: "90"});
+          createButton("90° Up", "move", {direction: "up", value: "90"});
+          createButton("90° Down", "move", {direction: "down", value: "90"});
+          createSlider("Zoom", "fov", THEASYS.fov_limits.min, THEASYS.fov_limits.max );
+      }
+
+      function createPanoGui(panos) {
+        panos.forEach( pano => {
+          console.log(pano);
+          createButton(pano.rnd, "panorama",  pano.rnd);
+        });
+      }
+
+      function createButton(label, fn, value) {
+          const gui = document.querySelector("#gui");
+          const button  = document.createElement("button");
+          button.innerHTML = label;
+          button.addEventListener ("click", () => apiSet( fn, value ));
+          gui.appendChild(button);
+      };
+
+      function createSlider(label, fn, min, max) {
+          const gui = document.querySelector("#gui");
+          const slider  = document.createElement("input");
+          slider.setAttribute("type", "range");
+          slider.setAttribute("min", min);
+          slider.setAttribute("max", max);
+          slider.addEventListener ("input", function() { apiSet( fn, this.value); });
+          gui.appendChild(slider);
+      }
+    </script>
+  </body>
+</html>
