@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Direkt Link to a Panorama inside a Theasys-Tour</title>
+  </head>
+  <body>
+    <script id="embed" async src="https://static.theasys.io/embed.js"></script>
+
+    <script>
+
+      const embed = document.querySelector("#embed");
+      embed.dataset.height = "400px";
+      embed.dataset.id = "my-id";
+      const urlParams = new URLSearchParams(window.location.search);
+      const defaultTour = "XlEhWs4G1i85cVdYtTVx8ANxJQmBAp";
+      const defaultPano = "Lfhry1a5NA";
+      const tour = urlParams.get("tour") || defaultTour;
+      const pano = urlParams.get("pano") || defaultPano;
+
+      embed.dataset.theasys = tour;
+      THEASYS = {};
+
+      apiListen("loaded", () => {
+        THEASYS.iframe = document.querySelector("#my-id").contentWindow;
+        apiSet("panorama", pano);
+      });
+
+      function apiListen(key, fn) {
+          const eventHandler = event => {
+              const data = event.data;
+              if(data[key]) fn(data[key]);
+          }
+          window.addEventListener("message", eventHandler, false);
+      }
+
+      function apiSet(key, value) {
+          THEASYS.iframe.postMessage({type: "api", key, action:"set", value }, "https://www.theasys.io");
+      }
+
+    </script>
+  </body>
+</html>
